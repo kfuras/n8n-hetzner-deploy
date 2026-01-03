@@ -1,0 +1,19 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Secrets
+terraform.tfvars
+
+# Local SSH keys
+!*.pub
+*.pub
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

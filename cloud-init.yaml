@@ -1,0 +1,93 @@
+#cloud-config
+users:
+  - name: ${username}
+    groups: users, admin, docker
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+packages:
+  - fail2ban
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - git
+
+package_update: true
+package_upgrade: true
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/ssh-hardening.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      Port 22
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      MaxAuthTries 2
+      AllowTcpForwarding yes
+      X11Forwarding no
+      AllowAgentForwarding no
+      AuthorizedKeysFile .ssh/authorized_keys
+      AllowUsers ${username}
+  
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+
+runcmd:
+  # Fail2Ban setup
+  - printf "[sshd]\nenabled = true\nport = ssh, 22\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # Docker Installation
+  - mkdir -p /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
+    Types: deb
+    URIs: https://download.docker.com/linux/ubuntu
+    Suites: $(. /etc/os-release && echo "$${UBUNTU_CODENAME:-$$VERSION_CODENAME}")
+    Components: stable
+    Signed-By: /etc/apt/keyrings/docker.asc
+    EOF
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || apt-get install -y docker-ce docker-ce-cli containerd.io=2.2.0-2~ubuntu.24.04~noble docker-buildx-plugin docker-compose-plugin
+  - systemctl enable docker
+  - systemctl start docker
+  - usermod -aG docker ${username}
+
+  # Create stack directory in user home
+  - mkdir -p /home/${username}/stack
+  - chown -R ${username}:${username} /home/${username}/stack
+
+  # Clone Docker repo using GitHub PAT
+  - |
+    sudo -u ${username} git clone https://x-access-token:${github_pat}@github.com/${github_org}/${github_repo}.git /home/${username}/stack
+
+  # Copy pre-generated env files (if they exist)
+  - |
+    if [ -f /home/${username}/.env ]; then
+      cp /home/${username}/.env /home/${username}/stack/.env
+      chmod 600 /home/${username}/stack/.env
+      chown ${username}:${username} /home/${username}/stack/.env
+    fi
+  - |
+    if [ -f /home/${username}/postiz.env ]; then
+      cp /home/${username}/postiz.env /home/${username}/stack/postiz.env
+      chmod 600 /home/${username}/stack/postiz.env
+      chown ${username}:${username} /home/${username}/stack/postiz.env
+    fi
+
+  # Start Docker services (will be handled by provisioner after file copy)
+  # - cd /home/${username}/stack && docker compose up -d

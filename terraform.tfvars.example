@@ -1,0 +1,31 @@
+# Hetzner
+hcloud_token = "your-hetzner-cloud-api-token"
+ssh_key_path = "~/.ssh/id_ed25519_n8n_dev.pub"
+home_ip      = "your.ip.address/32"
+
+# Server
+server_name = "n8n-server-1"
+server_type = "cx23"
+location    = "hel1"
+image       = "ubuntu-24.04"
+username    = "yourname"
+
+# GitHub
+github_org  = "your-github-org"
+github_repo = "n8n-production-platform"
+github_pat  = "github_pat_xxxxxxxxxxxxx"
+
+# Domain & Core
+domain = "yourdomain.com"
+
+# Security
+enable_firewall = true
+enable_backups  = false
+
+# Apps to enable (all configs are in production.env.example)
+enable_baserow     = false
+enable_nocodb      = false
+enable_minio       = false
+enable_kokoro_tts  = false
+enable_nca_toolkit = false
+enable_postiz      = false
