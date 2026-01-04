@@ -90,9 +90,86 @@ resource "hcloud_firewall_attachment" "main" {
   server_ids  = [hcloud_server.main.id]
 }
 
+# Wait for DNS to propagate before starting services
+resource "null_resource" "wait_for_dns" {
+  count      = var.wait_for_dns ? 1 : 0
+  depends_on = [hcloud_server.main]
+
+  triggers = {
+    server_id          = hcloud_server.main.id
+    domain             = var.domain
+    enable_baserow     = var.enable_baserow
+    enable_nocodb      = var.enable_nocodb
+    enable_minio       = var.enable_minio
+    enable_nca_toolkit = var.enable_nca_toolkit
+    enable_kokoro_tts  = var.enable_kokoro_tts
+    enable_postiz      = var.enable_postiz
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      #!/bin/bash
+      set -e
+      
+      SERVER_IP="${hcloud_server.main.ipv4_address}"
+      DOMAIN="${var.domain}"
+      
+      echo "Checking DNS propagation for $DOMAIN..."
+      
+      # Build list of enabled services
+      SERVICES=("n8n")
+      ${var.enable_baserow ? "SERVICES+=(\"baserow\")" : ""}
+      ${var.enable_nocodb ? "SERVICES+=(\"nocodb\")" : ""}
+      ${var.enable_minio ? "SERVICES+=(\"minio\" \"minio-console\")" : ""}
+      ${var.enable_nca_toolkit ? "SERVICES+=(\"nca-toolkit\")" : ""}
+      ${var.enable_kokoro_tts ? "SERVICES+=(\"kokoro-tts\")" : ""}
+      ${var.enable_postiz ? "SERVICES+=(\"postiz\")" : ""}
+      
+      MAX_ATTEMPTS=60
+      ATTEMPT=0
+      
+      while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        ALL_RESOLVED=true
+        
+        for service in "$${SERVICES[@]}"; do
+          FQDN="$service.$DOMAIN"
+          RESOLVED_IP=$(dig +short "$FQDN" @1.1.1.1 2>/dev/null | head -n1)
+          
+          if [ "$RESOLVED_IP" != "$SERVER_IP" ]; then
+            ALL_RESOLVED=false
+            if [ $ATTEMPT -eq 0 ]; then
+              echo "  Waiting for $FQDN → $SERVER_IP"
+            fi
+          fi
+        done
+        
+        if [ "$ALL_RESOLVED" = true ]; then
+          echo "DNS verified - all records point to $SERVER_IP"
+          exit 0
+        fi
+        
+        ATTEMPT=$((ATTEMPT + 1))
+        
+        if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+          sleep 30
+        else
+          echo "Timeout: DNS not fully propagated. Continuing anyway..."
+        fi
+      done
+      
+      exit 0
+    EOT
+    
+    interpreter = ["/bin/bash", "-c"]
+  }
+}
+
 # Wait for repo to be cloned and Docker ready, then configure
 resource "null_resource" "copy_env_file" {
-  depends_on = [hcloud_server.main]
+  depends_on = [
+    hcloud_server.main,
+    null_resource.wait_for_dns
+  ]
 
   # Re-run provisioner when any of these values change
   triggers = {

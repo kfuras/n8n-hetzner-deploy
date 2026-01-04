@@ -61,7 +61,25 @@ Before you start, you need:
 
 4. **SSH key pair** for server access
 
-5. **Domain name** pointed to your server (configure DNS after getting the IP)
+5. **Domain name** with access to DNS settings
+   - Works with any DNS hosting service where you can add DNS records
+   - You'll manually configure DNS records; deployment waits for propagation
+
+### DNS Configuration - Works With Any Service
+
+You can use **any DNS hosting service** to configure your domain's DNS records:
+
+- **Cloudflare** - Dashboard or API
+- **AWS Route53** - Console or CLI
+- **Namecheap** - Control panel
+- **GoDaddy** - Domain manager
+- **Google Domains** - DNS settings
+- **Any other service** - Just needs A record support
+
+**How it works:**
+1. You manually add DNS records in your DNS hosting service's dashboard
+2. OpenTofu checks if those records have propagated (using public DNS servers)
+3. Once verified, deployment continues automatically
 
 ### Creating an SSH Key Pair
 
@@ -140,23 +158,45 @@ This creates two files:
    ```bash
    tofu apply
    ```
-
-7. **Configure DNS**
    
-   After deployment, point your domain's DNS records to the server IP:
+   The deployment will:
+   - Create the server and get an IP address
+   - Wait for DNS to propagate (checks automatically)
+   - Configure services once DNS is ready
+   - Start all enabled services
+
+7. **Configure DNS (while deployment waits)**
+   
+   The deployment pauses to check DNS. In another terminal or browser:
+   
+   ```bash
+   # Get the required DNS records
+   tofu output dns_records_needed
    ```
-   A    @          -> <server-ip>
+   
+   Point your domain's DNS records to the server IP (shown in output):
+   ```
    A    n8n        -> <server-ip>
-   A    webhook    -> <server-ip>
-   A    *.yourdomain.com -> <server-ip>  (wildcard for all services)
+   A    nocodb     -> <server-ip>
+   # ... (only records for enabled services)
    ```
+   
+   Or use wildcard (covers all services):
+   ```
+   A    *.yourdomain.com -> <server-ip>
+   ```
+   
+   **DNS providers**: Works with any provider (Cloudflare, Route53, Namecheap, GoDaddy, etc.)
+   
+   Once DNS propagates (1-5 minutes), Terraform automatically detects it and continues.
 
 8. **Wait for services to start**
    
-   The first deployment takes 5-10 minutes:
-   - Cloud-init installs Docker and clones your repo
-   - Traefik requests SSL certificates from Let's Encrypt
-   - Services initialize their databases
+   The first deployment takes 5-10 minutes total:
+   - DNS propagation: 1-5 minutes (automatic check)
+   - Cloud-init installs Docker: 2-3 minutes
+   - Traefik requests SSL certificates: 1-2 minutes
+   - Services initialize databases: 1-2 minutes
 
 9. **Access N8N**
    
@@ -185,6 +225,22 @@ OpenTofu will:
 To disable a service, set it to `false` and run `tofu apply` again. The containers will be stopped and removed automatically.
 
 ## Configuration
+
+### DNS Wait Check
+
+By default, OpenTofu waits for DNS to propagate before starting services. This ensures SSL certificates work on first try.
+
+**Control via `terraform.tfvars`:**
+```terraform
+wait_for_dns = true   # Wait for DNS (recommended, default)
+wait_for_dns = false  # Skip DNS check, start immediately
+```
+
+**How it works:**
+- Checks DNS every 30 seconds (up to 30 minutes)
+- Only checks enabled services
+- Queries Cloudflare's public DNS resolver (1.1.1.1) for checking propagation
+- Continues anyway after timeout
 
 ### Server Sizing
 
@@ -267,16 +323,30 @@ All services automatically get SSL certificates from Let's Encrypt via Traefik.
 
 ## How It Works
 
-1. **Cloud-init Setup**: When the server starts, cloud-init installs Docker, configures security, and clones your GitHub repo to `/home/username/stack`
+### Deployment Flow
 
-2. **Configuration**: OpenTofu waits for Docker to be ready, then:
+1. **Server Creation**: Hetzner creates the server and assigns an IP address
+
+2. **DNS Check** (if `wait_for_dns = true`):
+   - OpenTofu pauses and checks if DNS records point to the new IP
+   - Checks only enabled services (n8n, baserow, nocodb, etc.)
+   - Queries Cloudflare's public resolver (1.1.1.1) to verify propagation
+   - Continues automatically when DNS propagates (or after 30 min timeout)
+
+3. **Cloud-init Setup**: While DNS propagates, the server:
+   - Installs Docker and security tools
+   - Configures SSH hardening and fail2ban
+   - Clones your GitHub repo to `/home/username/stack`
+
+4. **Service Configuration**: Once DNS is ready, OpenTofu:
+   - Waits for Docker to be available
    - Copies `production.env.example` to `.env`
    - Updates `DOMAIN` and `HOME_IP` values
-   - Modifies `docker-compose.yml` to comment/uncomment service includes based on enable flags
+   - Modifies `docker-compose.yml` to enable/disable services
 
-3. **Service Launch**: Runs `docker compose up -d --remove-orphans` to start enabled services and remove disabled ones
+5. **Service Launch**: Starts services in background with `docker compose up -d`
 
-4. **SSL Certificates**: Traefik automatically requests and configures Let's Encrypt certificates for all services
+6. **SSL Certificates**: Traefik automatically requests Let's Encrypt certificates (works because DNS is ready)
 
 ### Domain Variable Substitution
 
@@ -314,6 +384,10 @@ OpenTofu only needs to set `DOMAIN` once, and all services automatically use it.
 # See current infrastructure state
 tofu show
 
+# Get server IP and DNS records needed
+tofu output public_ipv4
+tofu output dns_records_needed
+
 # Check which services are enabled
 tofu state show null_resource.copy_env_file
 
@@ -325,6 +399,10 @@ tofu apply
 # Edit terraform.tfvars: enable_nocodb = false
 tofu apply
 
+# Skip DNS check (if you want to set DNS later)
+# Edit terraform.tfvars: wait_for_dns = false
+tofu apply
+
 # SSH to server
 ssh -i ~/.ssh/id_ed25519_n8n_dev username@server-ip
 
@@ -333,6 +411,9 @@ docker compose -f /home/username/stack/docker-compose.yml ps
 
 # View service logs
 docker compose -f /home/username/stack/docker-compose.yml logs -f n8n
+
+# View Traefik logs (SSL certificate issues)
+docker compose -f /home/username/stack/docker-compose.yml logs -f traefik
 
 # Restart all services
 docker compose -f /home/username/stack/docker-compose.yml restart
@@ -349,6 +430,26 @@ tofu validate
 
 ## Troubleshooting
 
+### DNS Not Propagating
+
+If OpenTofu is waiting for DNS:
+
+**Check current DNS:**
+```bash
+dig @1.1.1.1 n8n.yourdomain.com +short
+```
+
+**Update DNS in your provider** (Cloudflare, Route53, etc.) to point to server IP
+
+**DNS propagation typically takes 1-5 minutes**, but can be up to 30 minutes
+
+**To skip DNS check and continue anyway:**
+```bash
+# Ctrl+C the current apply
+# Edit terraform.tfvars: wait_for_dns = false
+tofu apply
+```
+
 ### Services Not Starting
 
 **Check Docker status:**
@@ -363,25 +464,39 @@ docker compose -f ~/stack/docker-compose.yml ps
 docker compose -f ~/stack/docker-compose.yml logs -f
 ```
 
+**If deployment appears stuck:**
+- Containers may be running but Terraform provisioner waiting
+- Safe to Ctrl+C and check server manually
+- Re-run `tofu apply` to complete provisioning
+
 ### SSL Certificate Issues
 
 **Symptoms**: "Your connection is not private" errors
 
 **Causes**:
-- DNS not pointing to server yet (wait for propagation)
+- DNS not pointing to server yet (check with `dig n8n.yourdomain.com`)
 - Let's Encrypt rate limit hit (5 certs per domain per week)
 - Port 80/443 not accessible
+- Traefik started before DNS propagated
 
 **Check Traefik logs:**
 ```bash
-docker compose -f ~/stack/docker-compose.yml logs traefik
+docker compose -f ~/stack/docker-compose.yml logs traefik | grep acme
+```
+
+**Force certificate renewal:**
+```bash
+# Remove acme.json and restart Traefik
+docker compose -f ~/stack/docker-compose.yml down traefik
+rm ~/stack/traefik/acme.json
+docker compose -f ~/stack/docker-compose.yml up -d traefik
 ```
 
 ### Can't Access Services
 
 **Check DNS:**
 ```bash
-dig n8n.yourdomain.com
+dig @1.1.1.1 n8n.yourdomain.com +short
 nslookup n8n.yourdomain.com
 ```
 

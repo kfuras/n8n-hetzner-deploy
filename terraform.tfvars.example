@@ -18,9 +18,10 @@ github_pat  = "github_pat_xxxxxxxxxxxxx"
 # Domain & Core
 domain = "yourdomain.com"
 
-# Security
+# Security & Deployment
 enable_firewall = true
 enable_backups  = false
+wait_for_dns    = true  # Wait for DNS propagation before starting services (recommended)
 
 # Apps to enable (all configs are in production.env.example)
 enable_baserow     = false

@@ -33,7 +33,20 @@ output "domain" {
   value       = var.domain
 }
 
-output "cloudflare_dns_update_command" {
-  description = "Command to update Cloudflare DNS (run from cloudflare-dns directory)"
-  value       = "cd ~/code/cloudflare-dns && tofu apply --auto-approve"
+output "dns_records_needed" {
+  description = "DNS records to create in your DNS provider (point these to the server IP)"
+  value = {
+    domain       = var.domain
+    server_ip    = hcloud_server.main.ipv4_address
+    instructions = "Create A records pointing to ${hcloud_server.main.ipv4_address} for:"
+    subdomains = concat(
+      ["n8n.${var.domain}"],
+      var.enable_baserow ? ["baserow.${var.domain}"] : [],
+      var.enable_nocodb ? ["nocodb.${var.domain}"] : [],
+      var.enable_minio ? ["minio.${var.domain}", "minio-console.${var.domain}"] : [],
+      var.enable_nca_toolkit ? ["nca-toolkit.${var.domain}"] : [],
+      var.enable_kokoro_tts ? ["kokoro-tts.${var.domain}"] : [],
+      var.enable_postiz ? ["postiz.${var.domain}"] : []
+    )
+  }
 }
