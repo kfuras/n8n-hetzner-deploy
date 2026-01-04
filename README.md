@@ -8,6 +8,8 @@
 
 Deploy a complete N8N automation platform with optional companion services on Hetzner Cloud. Fully automated deployment with SSL certificates, security hardening, and modular architecture.
 
+> **⚠️ Important:** This deployment requires a **GitHub Personal Access Token (PAT)** with read access to the private Docker Compose repository in this Org. Create one at: GitHub profile icon (upper right) → Settings → Developer Settings → Personal Access Tokens → Fine-grained tokens. Give the token a unique name → Select Resource owner: **build-automate** → Expiration: **Never** → Repository access: **All repositories** → Permissions: **Contents: Read-only**.
+
 ## What Gets Created
 
 When you run this configuration, you'll get:
