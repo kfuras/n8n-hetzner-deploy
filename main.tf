@@ -73,7 +73,7 @@ resource "hcloud_server" "main" {
   user_data   = local.cloud_init_content
 
   labels = {
-    environment = "production"
+    environment = "development"
     managed_by  = "opentofu"
   }
 
