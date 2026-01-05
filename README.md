@@ -8,7 +8,32 @@
 
 Deploy a complete N8N automation platform with optional companion services on Hetzner Cloud. Fully automated deployment with SSL certificates, security hardening, and modular architecture.
 
-> **⚠️ Important:** This deployment requires a **GitHub Personal Access Token (PAT)** with read access to the private Docker Compose repository in this Org. Create one at: GitHub profile icon (upper right) → Settings → Developer Settings → Personal Access Tokens → Fine-grained tokens. Give the token a unique name → Select Resource owner: **build-automate** → Expiration: **Never** → Repository access: **All repositories** → Permissions: **Contents: Read-only**.
+**Security:** Secrets are automatically generated on the server during deployment using `openssl`. They never pass through Terraform state, keeping your infrastructure code secure. Encryption keys are permanent - do not change them post-deployment as this will break N8N workflows and encrypted data.
+
+---
+
+## ⚠️ REQUIRED: GitHub Personal Access Token
+
+**This deployment will NOT work without a GitHub PAT.** You need a Personal Access Token with read access to the private `build-automate/n8n-production-platform` repository.
+
+### How to Create Your PAT:
+
+1. Go to GitHub.com and click your **profile icon** (upper right)
+2. Navigate: **Settings** → **Developer Settings** → **Personal Access Tokens** → **Fine-grained tokens**
+3. Click **Generate new token**
+4. Configure:
+   - **Token name**: `n8n-deploy-read` (or any name you prefer)
+   - **Resource owner**: Select **build-automate**
+   - **Expiration**: **Never** (or set your own policy)
+   - **Repository access**: **All repositories**
+   - **Permissions**: 
+     - Repository permissions → **Contents**: **Read-only**
+5. Click **Generate token**
+6. **Copy the token immediately** - you won't see it again!
+
+Save this token securely - you'll need it in `terraform.tfvars` as `github_pat`.
+
+---
 
 ## What Gets Created
 
@@ -319,9 +344,10 @@ All services automatically get SSL certificates from Let's Encrypt via Traefik.
 - Non-root user with Docker access
 
 ### Application Security
-- All services use the pre-configured values from `production.env.example`
-- Secrets stored in OpenTofu state (encrypted at rest)
+- Unique secure secrets auto-generated on server using `openssl rand`
+- Secrets never stored in Terraform state (generated server-side only)
 - GitHub PAT only needs read-only access to contents
+- Encryption keys are permanent and cannot be changed without data loss
 
 ## How It Works
 

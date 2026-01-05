@@ -203,12 +203,28 @@ resource "null_resource" "copy_env_file" {
   provisioner "remote-exec" {
     inline = concat(
       [
-        # Copy env files from repo to working location
+        # Copy env file from repo
         "cp /home/${var.username}/stack/secrets/production.env.example /home/${var.username}/stack/.env",
         "chmod 600 /home/${var.username}/stack/.env",
-        # Update DOMAIN value - all other vars use ${DOMAIN} automatically
+        # Update DOMAIN and HOME_IP
         "sed -i 's|DOMAIN=yourdomain.com|DOMAIN=${var.domain}|g' /home/${var.username}/stack/.env",
         "sed -i 's|HOME_IP=192.168.1.100|HOME_IP=${replace(var.home_ip, "/32", "")}|g' /home/${var.username}/stack/.env",
+        # Generate and replace passwords (using openssl - keeps secrets out of tfstate)
+        "sed -i \"s|NOCODB_PASSWORD=.*|NOCODB_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|N8N_ENCRYPTION_KEY=.*|N8N_ENCRYPTION_KEY=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|N8N_USER_MANAGEMENT_JWT_SECRET=.*|N8N_USER_MANAGEMENT_JWT_SECRET=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|N8N_BASIC_AUTH_PASSWORD=.*|N8N_BASIC_AUTH_PASSWORD=$(openssl rand -base64 18 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|MINIO_ROOT_PASSWORD=.*|MINIO_ROOT_PASSWORD=$(openssl rand -base64 18 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|NCA_API_KEY=.*|NCA_API_KEY=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|NCA_S3_ACCESS_KEY=.*|NCA_S3_ACCESS_KEY=$(openssl rand -base64 18 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|NCA_S3_SECRET_KEY=.*|NCA_S3_SECRET_KEY=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|POSTIZ_DB_PASSWORD=.*|POSTIZ_DB_PASSWORD=$(openssl rand -base64 18 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|POSTIZ_JWT_SECRET=.*|POSTIZ_JWT_SECRET=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|DATABASE_PASSWORD=.*|DATABASE_PASSWORD=$(openssl rand -base64 18 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$(openssl rand -base64 18 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
+        "sed -i \"s|BASEROW_S3_SECRET_KEY=.*|BASEROW_S3_SECRET_KEY=$(openssl rand -base64 24 | tr -d '/+=')|g\" /home/${var.username}/stack/.env",
       ],
       # Toggle services based on enable flags
       local.service_commands,
