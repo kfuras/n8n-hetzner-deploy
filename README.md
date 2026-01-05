@@ -43,7 +43,7 @@ All secrets are automatically generated server-side using `openssl` - they never
 3. **Ansible** - `brew install ansible` (or `pip install ansible`)
 4. **GitHub PAT** with read access to your private repo:
    - GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
-   - Set Resource owner to your org, Repository access: All repositories
+   - Set Resource owner to build-automate, Repository access: All repositories
    - Permissions: Contents → Read-only
 5. **SSH key pair** - `ssh-keygen -t ed25519 -C "n8n-server" -f ~/.ssh/id_ed25519_n8n`
 6. **Domain name** with DNS access
