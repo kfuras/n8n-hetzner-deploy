@@ -1,0 +1,12 @@
+---
+- name: View service logs
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Show logs for {{ service }}
+      ansible.builtin.raw: |
+        cd {{ stack_dir | default('/home/' + username + '/stack') }}
+        docker compose logs --tail=100 {{ service }}
+      changed_when: false

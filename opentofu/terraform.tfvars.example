@@ -23,10 +23,3 @@ enable_firewall = true
 enable_backups  = false
 wait_for_dns    = true  # Wait for DNS propagation before starting services (recommended)
 
-# Apps to enable (all configs are in production.env.example)
-enable_baserow     = false
-enable_nocodb      = false
-enable_minio       = false
-enable_kokoro_tts  = false
-enable_nca_toolkit = false
-enable_postiz      = false

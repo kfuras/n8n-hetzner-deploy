@@ -1,0 +1,37 @@
+---
+- name: Update deployment from git
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Pull latest changes from git
+      ansible.builtin.shell: |
+        cd {{ stack_dir | default('/home/' + username + '/stack') }}
+        git pull
+      register: git_pull
+      changed_when: "'Already up to date' not in git_pull.stdout"
+
+    - name: Show git pull result
+      ansible.builtin.debug:
+        msg: "{{ git_pull.stdout }}"
+
+    - name: Pull latest Docker images
+      when: git_pull.changed
+      community.docker.docker_compose_v2:
+        project_src: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        files:
+          - docker-compose.yml
+          - docker-compose.baserow.yml
+          - docker-compose.nocodb.yml
+          - docker-compose.minio.yml
+          - docker-compose.postiz.yml
+          - docker-compose.nca-toolkit.yml
+          - docker-compose.kokoro-tts.yml
+        state: present
+        pull: always
+        recreate: always
+
+    - name: Update complete
+      ansible.builtin.debug:
+        msg: "Deployment updated successfully"

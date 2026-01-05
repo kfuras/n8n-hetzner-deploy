@@ -1,0 +1,71 @@
+---
+- name: Backup databases
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    backup_dir: /opt/backups
+    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+  tasks:
+    - name: Create backup directory
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Backup PostgreSQL database
+      ansible.builtin.shell: |
+        docker compose exec -T postgres pg_dumpall -U postgres | gzip > {{ backup_dir }}/postgres_{{ timestamp }}.sql.gz
+      args:
+        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+      register: postgres_backup
+      ignore_errors: true
+
+    - name: Backup service-specific PostgreSQL containers
+      ansible.builtin.shell: |
+        # List all postgres containers and backup each
+        for container in $(docker ps --format '{{{{.Names}}' | grep -E 'postgres|db'); do
+          if [[ "$container" != "postgres" ]]; then
+            service_name=$(echo $container | sed 's/-postgres//' | sed 's/-db//')
+            docker exec -t $container pg_dumpall -U postgres 2>/dev/null | gzip > {{ backup_dir }}/${service_name}_db_{{ timestamp }}.sql.gz || true
+          fi
+        done
+      args:
+        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+      register: service_db_backups
+      ignore_errors: true
+
+    - name: Backup environment secrets (.env)
+      ansible.builtin.copy:
+        src: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        dest: "{{ backup_dir }}/env_{{ timestamp }}.backup"
+        remote_src: true
+        mode: '0600'
+      register: env_backup
+
+    - name: Backup MinIO data (if enabled)
+      when: services.minio.enabled | default(false)
+      ansible.builtin.shell: |
+        docker compose exec -T minio mc mirror /data {{ backup_dir }}/minio_{{ timestamp }}
+      args:
+        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+      register: minio_backup
+      ignore_errors: true
+
+    - name: List backups
+      ansible.builtin.find:
+        paths: "{{ backup_dir }}"
+        patterns: "*"
+      register: backup_files
+
+    - name: Backup complete
+      ansible.builtin.debug:
+        msg: 
+          - "Backup created in {{ backup_dir }}"
+          - "Database: postgres_{{ timestamp }}.sql.gz"
+          - "Secrets: env_{{ timestamp }}.backup"
+          - "Total files: {{ backup_files.files | length }}"
+          - ""
+          - "⚠️  IMPORTANT: Keep env_{{ timestamp }}.backup secure - it contains encryption keys!"

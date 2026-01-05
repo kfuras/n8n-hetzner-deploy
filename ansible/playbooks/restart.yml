@@ -1,0 +1,24 @@
+---
+- name: Restart service or all services
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Restart {{ service | default('all services') }}
+      community.docker.docker_compose_v2:
+        project_src: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        files:
+          - docker-compose.yml
+          - docker-compose.baserow.yml
+          - docker-compose.nocodb.yml
+          - docker-compose.minio.yml
+          - docker-compose.postiz.yml
+          - docker-compose.nca-toolkit.yml
+          - docker-compose.kokoro-tts.yml
+        state: restarted
+        services: "{{ [service] if service is defined else omit }}"
+
+    - name: Restart complete
+      ansible.builtin.debug:
+        msg: "{{ service | default('All services') }} restarted successfully"

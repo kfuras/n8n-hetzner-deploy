@@ -6,6 +6,11 @@
 
 # Secrets
 terraform.tfvars
+ansible/inventory.yml
+ansible/group_vars/all.yml
+
+# Ansible
+*.retry
 
 # Local SSH keys
 !*.pub

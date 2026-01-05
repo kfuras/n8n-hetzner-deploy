@@ -1,0 +1,298 @@
+---
+- name: Deploy n8n and optional services
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Wait for DNS propagation
+      when: wait_for_dns | default(true) | bool
+      block:
+        - name: Build list of subdomains to check
+          ansible.builtin.set_fact:
+            subdomains_to_check: >
+              {%- set subs = ['n8n'] -%}
+              {%- for service_name, service in services.items() -%}
+                {%- if service.enabled | default(false) -%}
+                  {%- if service.subdomain is defined -%}
+                    {%- set _ = subs.append(service.subdomain) -%}
+                  {%- elif service.subdomains is defined -%}
+                    {%- for sub in service.subdomains -%}
+                      {%- set _ = subs.append(sub) -%}
+                    {%- endfor -%}
+                  {%- endif -%}
+                {%- endif -%}
+              {%- endfor -%}
+              {{ subs }}
+
+        - name: Check DNS propagation for enabled services
+          ansible.builtin.shell: |
+            dig +short {{ item }}.{{ domain }} @{{ dns_resolver | default('1.1.1.1') }}
+          register: dns_result
+          until: dns_result.stdout == ansible_host
+          retries: "{{ dns_max_attempts | default(60) }}"
+          delay: "{{ dns_check_delay | default(10) }}"
+          changed_when: false
+          loop: "{{ subdomains_to_check }}"
+
+        - name: DNS propagated successfully
+          ansible.builtin.debug:
+            msg: "All DNS records point to {{ ansible_host }}"
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+
+    - name: Wait for Docker to be ready
+      ansible.builtin.wait_for:
+        path: /var/run/docker.sock
+        timeout: 300
+
+    - name: Verify repository was cloned by cloud-init
+      ansible.builtin.stat:
+        path: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+      register: repo_stat
+      failed_when: not repo_stat.stat.exists
+
+    - name: Reset repository to clean state
+      ansible.builtin.command:
+        cmd: git reset --hard HEAD
+        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+      register: git_reset
+      changed_when: "'HEAD is now at' in git_reset.stdout"
+
+    - name: Show what was reset
+      ansible.builtin.debug:
+        msg: "{{ git_reset.stdout }}"
+      when: "'HEAD is now at' in git_reset.stdout"
+
+    - name: Pull latest changes
+      ansible.builtin.command:
+        cmd: git pull
+        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+      register: git_pull
+      changed_when: "'Already up to date' not in git_pull.stdout"
+
+    - name: Show what was pulled
+      ansible.builtin.debug:
+        msg: "{{ git_pull.stdout }}"
+      when: "'Already up to date' not in git_pull.stdout"
+
+    - name: Remove include section from docker-compose.yml using sed
+      ansible.builtin.shell: |
+        if grep -q '^include:' docker-compose.yml; then
+          sed -i '/^include:/,/^[^ ]/{ /^include:/d; /^  -/d; }' docker-compose.yml
+          echo "changed"
+        fi
+      args:
+        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        executable: /bin/bash
+      register: sed_result
+      changed_when: "'changed' in sed_result.stdout"
+
+    - name: Show include section removal
+      ansible.builtin.debug:
+        msg: "Removed include section from docker-compose.yml"
+      when: "'changed' in sed_result.stdout"
+
+    - name: Generate secrets if .env doesn't exist
+      block:
+        - name: Check if .env exists
+          ansible.builtin.stat:
+            path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+          register: env_stat
+
+        - name: Copy production.env.example to .env
+          when: not env_stat.stat.exists
+          ansible.builtin.copy:
+            src: "{{ stack_dir | default('/home/' + username + '/stack') }}/secrets/production.env.example"
+            dest: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+            remote_src: true
+            mode: '0600'
+            owner: "{{ username }}"
+            group: "{{ username }}"
+
+        - name: Generate core infrastructure secrets
+          when: not env_stat.stat.exists
+          ansible.builtin.shell: |
+            openssl rand -base64 32
+          register: secret_result
+          loop:
+            - N8N_ENCRYPTION_KEY
+            - N8N_USER_MANAGEMENT_JWT_SECRET
+            - N8N_BASIC_AUTH_PASSWORD
+            - POSTGRES_PASSWORD
+          loop_control:
+            label: "{{ item }}"
+          changed_when: true
+
+        - name: Update .env with generated secrets and domain
+          when: not env_stat.stat.exists
+          ansible.builtin.lineinfile:
+            path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+            regexp: "^{{ item.key }}="
+            line: "{{ item.key }}={{ item.value }}"
+            mode: '0600'
+            owner: "{{ username }}"
+            group: "{{ username }}"
+          loop:
+            - { key: 'DOMAIN', value: '{{ domain }}' }
+            - { key: 'ACME_EMAIL', value: 'admin@{{ domain }}' }
+            - { key: 'N8N_HOST', value: 'n8n.{{ domain }}' }
+            - { key: 'N8N_WEBHOOK', value: 'https://n8n.{{ domain }}/webhook' }
+            - { key: 'N8N_ENCRYPTION_KEY', value: '{{ secret_result.results[0].stdout }}' }
+            - { key: 'N8N_USER_MANAGEMENT_JWT_SECRET', value: '{{ secret_result.results[1].stdout }}' }
+            - { key: 'N8N_BASIC_AUTH_PASSWORD', value: '{{ secret_result.results[2].stdout }}' }
+            - { key: 'POSTGRES_PASSWORD', value: '{{ secret_result.results[3].stdout }}' }
+          loop_control:
+            label: "{{ item.key }}"
+
+        - name: Secrets generated
+          when: not env_stat.stat.exists
+          ansible.builtin.debug:
+            msg: "Generated secrets and created .env file"
+
+    - name: Generate secrets for enabled services
+      block:
+        - name: Build list of secrets to check for enabled services
+          ansible.builtin.set_fact:
+            service_secrets: >
+              {%- set secrets = [] -%}
+              {%- for service_name, service in services.items() -%}
+                {%- if service.enabled | default(false) and service.secrets | default([]) | length > 0 -%}
+                  {%- for secret in service.secrets -%}
+                    {%- set _ = secrets.append({'service': service_name, 'secret': secret}) -%}
+                  {%- endfor -%}
+                {%- endif -%}
+              {%- endfor -%}
+              {{ secrets }}
+
+        - name: Check for missing or example secrets in enabled services
+          ansible.builtin.shell: |
+            grep -E "^{{ item.secret }}=" {{ stack_dir | default('/home/' + username + '/stack') }}/.env | cut -d'=' -f2
+          register: secret_check
+          loop: "{{ service_secrets }}"
+          failed_when: false
+          changed_when: false
+          loop_control:
+            label: "{{ item.secret }}"
+
+        - name: Generate new secrets for services that need them
+          ansible.builtin.shell: openssl rand -base64 32
+          register: new_secrets
+          loop: "{{ secret_check.results }}"
+          when: item.stdout == '' or item.stdout | length < 10
+          loop_control:
+            label: "{{ item.item.secret }}"
+
+        - name: Update service secrets in .env
+          ansible.builtin.lineinfile:
+            path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+            regexp: "^{{ item.0.item.secret }}="
+            line: "{{ item.0.item.secret }}={{ item.1.stdout }}"
+            mode: '0600'
+            owner: "{{ username }}"
+            group: "{{ username }}"
+          loop: "{{ secret_check.results | zip(new_secrets.results) | list }}"
+          when: item.1.stdout is defined
+          loop_control:
+            label: "{{ item.0.item.secret }}"
+
+    - name: Ensure HOME_IP is set correctly in .env
+      ansible.builtin.lineinfile:
+        path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        regexp: '^HOME_IP='
+        line: "HOME_IP={{ home_ip }}"
+        mode: '0600'
+        owner: "{{ username }}"
+        group: "{{ username }}"
+      changed_when: false
+
+    - name: Ensure DOMAIN is set correctly in .env
+      ansible.builtin.lineinfile:
+        path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        regexp: '^DOMAIN='
+        line: "DOMAIN={{ domain }}"
+        mode: '0600'
+        owner: "{{ username }}"
+        group: "{{ username }}"
+      changed_when: false
+
+    - name: Copy postiz.env.example to postiz.env
+      ansible.builtin.copy:
+        src: "{{ stack_dir | default('/home/' + username + '/stack') }}/postiz.env.example"
+        dest: "{{ stack_dir | default('/home/' + username + '/stack') }}/postiz.env"
+        remote_src: true
+        mode: '0600'
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        force: false
+      changed_when: false
+
+    - name: Configure service states in .env
+      ansible.builtin.lineinfile:
+        path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        regexp: '^COMPOSE_PROFILES='
+        line: "COMPOSE_PROFILES={{ enabled_services | join(',') }}"
+        create: false
+      changed_when: false
+      vars:
+        enabled_services: >
+          {%- set profiles = [] -%}
+          {%- for service_name, service in services.items() -%}
+            {%- if service.enabled | default(false) -%}
+              {%- set _ = profiles.append(service_name) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ profiles }}
+
+    - name: Build list of compose files to use
+      ansible.builtin.set_fact:
+        compose_files: >
+          {%- set files = ['docker-compose.yml'] -%}
+          {%- for service_name, service in services.items() -%}
+            {%- if service.enabled | default(false) -%}
+              {%- set _ = files.append(service.compose_file) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ files }}
+
+    - name: Show which services will be deployed
+      ansible.builtin.debug:
+        msg: "Deploying with files: {{ compose_files | join(', ') }}"
+
+    - name: Deploy services with Docker Compose
+      ansible.builtin.shell: |
+        cd {{ stack_dir | default('/home/' + username + '/stack') }}
+        docker compose --env-file .env {{ compose_files | map('regex_replace', '^(.*)$', '--file \1') | join(' ') }} up --detach --pull always 2>&1
+      environment:
+        GITHUB_PAT: "{{ github_pat }}"
+      register: compose_result
+      changed_when: true
+
+    - name: Show Docker Compose output
+      ansible.builtin.debug:
+        msg: "{{ compose_result.stdout_lines }}"
+
+    - name: Build list of service URLs
+      ansible.builtin.set_fact:
+        service_urls: >
+          {%- set urls = ['https://n8n.' + domain] -%}
+          {%- for service_name, service in services.items() -%}
+            {%- if service.enabled | default(false) -%}
+              {%- if service.subdomain is defined -%}
+                {%- set _ = urls.append('https://' + service.subdomain + '.' + domain) -%}
+              {%- elif service.subdomains is defined -%}
+                {%- for sub in service.subdomains -%}
+                  {%- set _ = urls.append('https://' + sub + '.' + domain) -%}
+                {%- endfor -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ urls }}
+
+    - name: Deployment complete
+      ansible.builtin.debug:
+        msg:
+          - "Deployment successful! Available services:"
+          - "{{ service_urls }}"
