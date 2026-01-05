@@ -6,7 +6,7 @@
 
   tasks:
     - name: Wait for DNS propagation
-      when: wait_for_dns | default(true) | bool
+      when: wait_for_dns | bool
       block:
         - name: Build list of subdomains to check
           ansible.builtin.set_fact:
@@ -27,11 +27,11 @@
 
         - name: Check DNS propagation for enabled services
           ansible.builtin.shell: |
-            dig +short {{ item }}.{{ domain }} @{{ dns_resolver | default('1.1.1.1') }}
+            dig +short {{ item }}.{{ domain }} @{{ dns_resolver }}
           register: dns_result
           until: dns_result.stdout == ansible_host
-          retries: "{{ dns_max_attempts | default(60) }}"
-          delay: "{{ dns_check_delay | default(10) }}"
+          retries: "{{ dns_max_attempts }}"
+          delay: "{{ dns_check_delay }}"
           changed_when: false
           loop: "{{ subdomains_to_check }}"
 
@@ -50,14 +50,14 @@
 
     - name: Verify repository was cloned by cloud-init
       ansible.builtin.stat:
-        path: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        path: "{{ stack_dir }}"
       register: repo_stat
       failed_when: not repo_stat.stat.exists
 
     - name: Reset repository to clean state
       ansible.builtin.command:
         cmd: git reset --hard HEAD
-        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        chdir: "{{ stack_dir }}"
       register: git_reset
       changed_when: "'HEAD is now at' in git_reset.stdout"
 
@@ -69,7 +69,7 @@
     - name: Pull latest changes
       ansible.builtin.command:
         cmd: git pull
-        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        chdir: "{{ stack_dir }}"
       register: git_pull
       changed_when: "'Already up to date' not in git_pull.stdout"
 
@@ -85,7 +85,7 @@
           echo "changed"
         fi
       args:
-        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        chdir: "{{ stack_dir }}"
         executable: /bin/bash
       register: sed_result
       changed_when: "'changed' in sed_result.stdout"
@@ -99,14 +99,14 @@
       block:
         - name: Check if .env exists
           ansible.builtin.stat:
-            path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+            path: "{{ stack_dir }}/.env"
           register: env_stat
 
         - name: Copy production.env.example to .env
           when: not env_stat.stat.exists
           ansible.builtin.copy:
-            src: "{{ stack_dir | default('/home/' + username + '/stack') }}/secrets/production.env.example"
-            dest: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+            src: "{{ stack_dir }}/secrets/production.env.example"
+            dest: "{{ stack_dir }}/.env"
             remote_src: true
             mode: '0600'
             owner: "{{ username }}"
@@ -129,7 +129,7 @@
         - name: Update .env with generated secrets and domain
           when: not env_stat.stat.exists
           ansible.builtin.lineinfile:
-            path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+            path: "{{ stack_dir }}/.env"
             regexp: "^{{ item.key }}="
             line: "{{ item.key }}={{ item.value }}"
             mode: '0600'
@@ -169,7 +169,7 @@
 
         - name: Check for missing or example secrets in enabled services
           ansible.builtin.shell: |
-            grep -E "^{{ item.secret }}=" {{ stack_dir | default('/home/' + username + '/stack') }}/.env | cut -d'=' -f2
+            grep -E "^{{ item.secret }}=" {{ stack_dir }}/.env | cut -d'=' -f2
           register: secret_check
           loop: "{{ service_secrets }}"
           failed_when: false
@@ -187,7 +187,7 @@
 
         - name: Update service secrets in .env
           ansible.builtin.lineinfile:
-            path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+            path: "{{ stack_dir }}/.env"
             regexp: "^{{ item.0.item.secret }}="
             line: "{{ item.0.item.secret }}={{ item.1.stdout }}"
             mode: '0600'
@@ -200,7 +200,7 @@
 
     - name: Ensure HOME_IP is set correctly in .env
       ansible.builtin.lineinfile:
-        path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        path: "{{ stack_dir }}/.env"
         regexp: '^HOME_IP='
         line: "HOME_IP={{ home_ip }}"
         mode: '0600'
@@ -210,7 +210,7 @@
 
     - name: Ensure DOMAIN is set correctly in .env
       ansible.builtin.lineinfile:
-        path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        path: "{{ stack_dir }}/.env"
         regexp: '^DOMAIN='
         line: "DOMAIN={{ domain }}"
         mode: '0600'
@@ -220,8 +220,8 @@
 
     - name: Copy postiz.env.example to postiz.env
       ansible.builtin.copy:
-        src: "{{ stack_dir | default('/home/' + username + '/stack') }}/postiz.env.example"
-        dest: "{{ stack_dir | default('/home/' + username + '/stack') }}/postiz.env"
+        src: "{{ stack_dir }}/postiz.env.example"
+        dest: "{{ stack_dir }}/postiz.env"
         remote_src: true
         mode: '0600'
         owner: "{{ username }}"
@@ -231,7 +231,7 @@
 
     - name: Configure service states in .env
       ansible.builtin.lineinfile:
-        path: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        path: "{{ stack_dir }}/.env"
         regexp: '^COMPOSE_PROFILES='
         line: "COMPOSE_PROFILES={{ enabled_services | join(',') }}"
         create: false
@@ -263,7 +263,7 @@
 
     - name: Deploy services with Docker Compose
       ansible.builtin.shell: |
-        cd {{ stack_dir | default('/home/' + username + '/stack') }}
+        cd {{ stack_dir }}
         docker compose --env-file .env {{ compose_files | map('regex_replace', '^(.*)$', '--file \1') | join(' ') }} up --detach --pull always 2>&1
       environment:
         GITHUB_PAT: "{{ github_pat }}"
