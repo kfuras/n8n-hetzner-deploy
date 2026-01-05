@@ -21,5 +21,4 @@ domain = "yourdomain.com"
 # Security & Deployment
 enable_firewall = true
 enable_backups  = false
-wait_for_dns    = true  # Wait for DNS propagation before starting services (recommended)
 

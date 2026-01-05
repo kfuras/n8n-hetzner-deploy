@@ -46,12 +46,6 @@ variable "enable_backups" {
   default     = false
 }
 
-variable "wait_for_dns" {
-  description = "Wait for DNS to propagate before starting services (recommended for SSL)"
-  type        = bool
-  default     = true
-}
-
 variable "home_ip" {
   description = "Your home IP for SSH access"
   type        = string
