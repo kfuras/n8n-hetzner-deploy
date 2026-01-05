@@ -12,9 +12,9 @@ ansible/group_vars/all.yml
 # Ansible
 *.retry
 
-# Local SSH keys
-!*.pub
-*.pub
+# SSH keys (ignore all, then explicitly allow .pub files)
+id_*
+!id_*.pub
 
 # IDE
 .vscode/
