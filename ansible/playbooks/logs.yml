@@ -7,6 +7,6 @@
   tasks:
     - name: Show logs for {{ service }}
       ansible.builtin.raw: |
-        cd {{ stack_dir | default('/home/' + username + '/stack') }}
+        cd {{ stack_dir }}
         docker compose logs --tail=100 {{ service }}
       changed_when: false

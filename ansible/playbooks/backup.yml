@@ -19,7 +19,7 @@
       ansible.builtin.shell: |
         docker compose exec -T postgres pg_dumpall -U postgres | gzip > {{ backup_dir }}/postgres_{{ timestamp }}.sql.gz
       args:
-        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        chdir: "{{ stack_dir }}"
       register: postgres_backup
       ignore_errors: true
 
@@ -33,13 +33,13 @@
           fi
         done
       args:
-        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        chdir: "{{ stack_dir }}"
       register: service_db_backups
       ignore_errors: true
 
     - name: Backup environment secrets (.env)
       ansible.builtin.copy:
-        src: "{{ stack_dir | default('/home/' + username + '/stack') }}/.env"
+        src: "{{ stack_dir }}/.env"
         dest: "{{ backup_dir }}/env_{{ timestamp }}.backup"
         remote_src: true
         mode: '0600'
@@ -50,7 +50,7 @@
       ansible.builtin.shell: |
         docker compose exec -T minio mc mirror /data {{ backup_dir }}/minio_{{ timestamp }}
       args:
-        chdir: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        chdir: "{{ stack_dir }}"
       register: minio_backup
       ignore_errors: true
 

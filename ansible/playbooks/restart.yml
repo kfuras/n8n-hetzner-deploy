@@ -7,7 +7,7 @@
   tasks:
     - name: Restart {{ service | default('all services') }}
       community.docker.docker_compose_v2:
-        project_src: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        project_src: "{{ stack_dir }}"
         files:
           - docker-compose.yml
           - docker-compose.baserow.yml

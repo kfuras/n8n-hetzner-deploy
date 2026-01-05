@@ -7,7 +7,7 @@
   tasks:
     - name: Pull latest changes from git
       ansible.builtin.shell: |
-        cd {{ stack_dir | default('/home/' + username + '/stack') }}
+        cd {{ stack_dir }}
         git pull
       register: git_pull
       changed_when: "'Already up to date' not in git_pull.stdout"
@@ -19,7 +19,7 @@
     - name: Pull latest Docker images
       when: git_pull.changed
       community.docker.docker_compose_v2:
-        project_src: "{{ stack_dir | default('/home/' + username + '/stack') }}"
+        project_src: "{{ stack_dir }}"
         files:
           - docker-compose.yml
           - docker-compose.baserow.yml
