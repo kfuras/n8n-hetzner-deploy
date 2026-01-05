@@ -56,7 +56,7 @@ All secrets are automatically generated server-side using `openssl` - they never
 
 ```bash
 # Clone and configure
-git clone <your-repo>
+git clone https://github.com/build-automate/n8n-hetzner-deploy.git
 cd n8n-hetzner-deploy/opentofu
 cp terraform.tfvars.example terraform.tfvars
 code terraform.tfvars  # Edit with your values
