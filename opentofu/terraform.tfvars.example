@@ -1,22 +1,22 @@
 # Hetzner
-hcloud_token = "your-hetzner-cloud-api-token"
-ssh_key_path = "~/.ssh/id_ed25519_n8n_dev.pub"
-home_ip      = "your.ip.address/32"
+hcloud_token = "your-hetzner-cloud-api-token" # Change me
+ssh_key_path = "~/.ssh/id_ed25519_your_ssh_key.pub" # Change me
+home_ip      = "your.ip.address/32" # Change me
 
 # Server
-server_name = "n8n-server-1"
+server_name = "your-server-name" # Change me
 server_type = "cx23"
 location    = "hel1"
 image       = "ubuntu-24.04"
-username    = "yourname"
+username    = "your-username" # Change me
 
 # GitHub
-github_org  = "your-github-org"
+github_org  = "build-automate"
 github_repo = "n8n-production-platform"
-github_pat  = "github_pat_xxxxxxxxxxxxx"
+github_pat  = "github_pat_xxxxxxxxxxxxx" # Change me
 
 # Domain & Core
-domain = "yourdomain.com"
+domain = "yourdomain.com" # Change me
 
 # Security & Deployment
 enable_firewall = true

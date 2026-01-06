@@ -61,8 +61,14 @@ cd n8n-hetzner-deploy/opentofu
 cp terraform.tfvars.example terraform.tfvars
 code terraform.tfvars  # Edit with your values
 
-# Required settings:
-# hcloud_token, domain, home_ip, ssh_key_path, github_pat
+# Edit the required settings:
+# - server_name
+# - username
+# - hcloud_token
+# - domain
+# - home_ip
+# - ssh_key_path
+# - github_pat
 
 # Deploy
 tofu init
@@ -154,14 +160,29 @@ server_type = "cx33"
 ### OpenTofu (`opentofu/terraform.tfvars`)
 
 ```hcl
-hcloud_token = "your-hetzner-api-token"
-domain       = "yourdomain.com"
-home_ip      = "1.2.3.4"
-ssh_key_path = "~/.ssh/id_ed25519_n8n.pub"
-github_pat   = "github_pat_xxxxx"
+# Hetzner
+hcloud_token = "your-hetzner-cloud-api-token"
+ssh_key_path = "~/.ssh/id_ed25519_your_ssh_key.pub"
+home_ip      = "your.ip.address/32"
 
-server_type  = "cx23"
-location     = "hel1"  # or nbg1, fsn1, ash
+# Server
+server_name = "your-server-name"
+server_type = "cx23"
+location    = "hel1"  # or nbg1, fsn1, ash
+image       = "ubuntu-24.04"
+username    = "your-username"
+
+# GitHub
+github_org  = "build-automate"
+github_repo = "n8n-production-platform"
+github_pat  = "github_pat_xxxxxxxxxxxxx"
+
+# Domain & Core
+domain = "yourdomain.com"
+
+# Security & Deployment
+enable_firewall = true
+enable_backups  = false
 ```
 
 ### Ansible (`ansible/group_vars/all.yml`)
