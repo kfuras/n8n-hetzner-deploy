@@ -53,7 +53,6 @@ All secrets are automatically generated server-side using `openssl` - they never
 3. **Ansible** - Configuration management tool that installs and configures software on servers
    - **macOS:** `brew install ansible` (or `pip install ansible`)
    - **Linux:** `sudo apt install ansible` (Ubuntu/Debian) or `pip install ansible`
-  
 
 4. **GitHub PAT** (Personal Access Token) - needed to access the private docker-compose repo:
    - GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
