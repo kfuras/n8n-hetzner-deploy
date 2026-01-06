@@ -53,11 +53,7 @@ All secrets are automatically generated server-side using `openssl` - they never
 3. **Ansible** - Configuration management tool that installs and configures software on servers
    - **macOS:** `brew install ansible` (or `pip install ansible`)
    - **Linux:** `sudo apt install ansible` (Ubuntu/Debian) or `pip install ansible`
-   - **Windows:** Requires WSL2 (Windows Subsystem for Linux)
-     1. Install WSL2: `wsl --install` in PowerShell (as Administrator)
-     2. Restart computer
-     3. Inside WSL2: `sudo apt update && sudo apt install ansible`
-     4. Run all OpenTofu and Ansible commands from WSL2 terminal
+  
 
 4. **GitHub PAT** (Personal Access Token) - needed to access the private docker-compose repo:
    - GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
