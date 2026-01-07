@@ -67,27 +67,6 @@ runcmd:
   - systemctl start docker
   - usermod -aG docker ${username}
 
-  # Create stack directory in user home
-  - mkdir -p /home/${username}/stack
-  - chown -R ${username}:${username} /home/${username}/stack
-
-  # Clone Docker repo using GitHub PAT
-  - |
-    sudo -u ${username} git clone https://x-access-token:${github_pat}@github.com/${github_org}/${github_repo}.git /home/${username}/stack
-
-  # Copy pre-generated env files (if they exist)
-  - |
-    if [ -f /home/${username}/.env ]; then
-      cp /home/${username}/.env /home/${username}/stack/.env
-      chmod 600 /home/${username}/stack/.env
-      chown ${username}:${username} /home/${username}/stack/.env
-    fi
-  - |
-    if [ -f /home/${username}/postiz.env ]; then
-      cp /home/${username}/postiz.env /home/${username}/stack/postiz.env
-      chmod 600 /home/${username}/stack/postiz.env
-      chown ${username}:${username} /home/${username}/stack/postiz.env
-    fi
-
-  # Start Docker services (will be handled by provisioner after file copy)
-  # - cd /home/${username}/stack && docker compose up -d
+  # Create stack directory (repository will be cloned by Ansible)
+  - mkdir -p /home/${username}
+  - chown -R ${username}:${username} /home/${username}

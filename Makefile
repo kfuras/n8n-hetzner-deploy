@@ -1,10 +1,11 @@
-.PHONY: help deploy check services restart logs update backup ping install-requirements
+.PHONY: help deploy deploy-verbose check services restart logs update backup ping install-requirements
 
 help:
 	@echo "n8n Hetzner Deployment - Ansible Commands"
 	@echo ""
 	@echo "Usage:"
 	@echo "  make deploy              Deploy n8n and all enabled services"
+	@echo "  make deploy-verbose      Deploy with detailed task output"
 	@echo "  make check               Check DNS propagation"
 	@echo "  make services            Show running services"
 	@echo "  make restart service=X   Restart specific service (or all if not specified)"
@@ -16,17 +17,21 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo "  make deploy"
+	@echo "  make deploy-verbose"
 	@echo "  make restart service=traefik"
 	@echo "  make logs service=n8n"
 
 deploy:
 	@cd ansible && ansible-playbook playbooks/site.yml
 
+deploy-verbose:
+	@cd ansible && ansible-playbook playbooks/site.yml -v
+
 check:
-	@cd ansible && ansible all -m shell -a "dig +short n8n.$$(grep '^domain:' group_vars/all.yml | awk '{print $$2}') @1.1.1.1"
+	@cd ansible && ansible all -m shell -a "dig +short n8n.$$(grep '^domain:' group_vars/all/infrastructure.yml | awk '{print $$2}') @1.1.1.1"
 
 services:
-	@cd ansible && ansible all -m shell -a "cd /home/$$(grep '^username:' group_vars/all.yml | awk '{print $$2}')/stack && docker compose ps"
+	@cd ansible && ansible all -m shell -a "cd /home/$$(grep '^username:' group_vars/all/infrastructure.yml | awk '{print $$2}')/stack && docker compose ps"
 
 restart:
 ifdef service

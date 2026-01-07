@@ -9,18 +9,19 @@ output "next_steps" {
     Next steps:
     
     1. Add DNS wildcard record:
-       *.${var.domain} → ${hcloud_server.main.ipv4_address}
+      *.${var.domain} → ${hcloud_server.main.ipv4_address}
     
     2. Enable services (optional):
-       code ../ansible/group_vars/all.yml
-       # Set enabled: true for nocodb, minio, etc.
+      code ../ansible/group_vars/services.yml
+      # Set enabled: true for nocodb, minio, etc.
     
     3. Deploy (from project root):
-       make install-requirements
-       make deploy
+      cd ..
+      make install-requirements
+      make deploy
     
     4. Access N8N:
-       https://n8n.${var.domain}
+      https://n8n.${var.domain}
     
     Daily commands:
       make services     - Show running services

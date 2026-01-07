@@ -48,11 +48,20 @@
         path: /var/run/docker.sock
         timeout: 300
 
-    - name: Verify repository was cloned by cloud-init
+    - name: Check if repository already exists
       ansible.builtin.stat:
-        path: "{{ stack_dir }}"
-      register: repo_stat
-      failed_when: not repo_stat.stat.exists
+        path: "{{ stack_dir }}/.git"
+      register: repo_exists
+
+    - name: Clone repository
+      ansible.builtin.git:
+        repo: "https://x-access-token:{{ github_pat }}@github.com/{{ github_org }}/{{ github_repo }}.git"
+        dest: "{{ stack_dir }}"
+        version: main
+        force: false
+      become: true
+      become_user: "{{ username }}"
+      when: not repo_exists.stat.exists
 
     - name: Reset repository to clean state
       ansible.builtin.command:
@@ -139,7 +148,7 @@
             - { key: 'DOMAIN', value: '{{ domain }}' }
             - { key: 'ACME_EMAIL', value: 'admin@{{ domain }}' }
             - { key: 'N8N_HOST', value: 'n8n.{{ domain }}' }
-            - { key: 'N8N_WEBHOOK', value: 'https://n8n.{{ domain }}/webhook' }
+            - { key: 'WEBHOOK_URL', value: 'https://n8n.{{ domain }}/' }
             - { key: 'N8N_ENCRYPTION_KEY', value: '{{ secret_result.results[0].stdout }}' }
             - { key: 'N8N_USER_MANAGEMENT_JWT_SECRET', value: '{{ secret_result.results[1].stdout }}' }
             - { key: 'N8N_BASIC_AUTH_PASSWORD', value: '{{ secret_result.results[2].stdout }}' }
@@ -259,20 +268,27 @@
 
     - name: Show which services will be deployed
       ansible.builtin.debug:
-        msg: "Deploying with files: {{ compose_files | join(', ') }}"
+        msg:
+          - "Deploying services:"
+          - "{{ compose_files }}"
+
+    - name: Pulling images and starting containers (this may take several minutes for large images)
+      ansible.builtin.debug:
+        msg: "Docker Compose is pulling images and starting containers. Large images like Baserow may take 2-5 minutes to download..."
 
     - name: Deploy services with Docker Compose
       ansible.builtin.shell: |
         cd {{ stack_dir }}
-        docker compose --env-file .env {{ compose_files | map('regex_replace', '^(.*)$', '--file \1') | join(' ') }} up --detach --pull always 2>&1
+        docker compose --env-file .env {{ compose_files | map('regex_replace', '^(.*)$', '--file \1') | join(' ') }} up --detach --remove-orphans 2>&1
       environment:
         GITHUB_PAT: "{{ github_pat }}"
       register: compose_result
       changed_when: true
 
-    - name: Show Docker Compose output
+    - name: Show deployment output
       ansible.builtin.debug:
-        msg: "{{ compose_result.stdout_lines }}"
+        msg: "{{ compose_result.stdout_lines | reject('match', '^\\s*$') | reject('search', 'No services to build') | list }}"
+      when: (compose_result.stdout_lines | reject('match', '^\\s*$') | reject('search', 'No services to build') | list | length) > 0
 
     - name: Build list of service URLs
       ansible.builtin.set_fact:

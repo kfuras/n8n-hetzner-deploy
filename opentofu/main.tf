@@ -38,9 +38,6 @@ locals {
   cloud_init_content = templatefile("${path.module}/cloud-init.yaml", {
     username       = var.username
     ssh_public_key = file(var.ssh_key_path)
-    github_org     = var.github_org
-    github_repo    = var.github_repo
-    github_pat     = var.github_pat
   })
 }
 
@@ -84,16 +81,16 @@ resource "local_file" "ansible_inventory" {
 }
 
 # Auto-generate Ansible infrastructure variables
-# Service enables should be edited manually in ansible/group_vars/all.yml
-resource "local_file" "ansible_vars" {
-  content = templatefile("${path.module}/ansible-vars.tpl", {
-    domain     = var.domain
-    home_ip    = replace(var.home_ip, "/32", "")
-    github_org = var.github_org
+# Service configuration is in ansible/group_vars/all/services.yml (user-managed, never touched by Terraform)
+resource "local_file" "ansible_infrastructure" {
+  content = templatefile("${path.module}/ansible-infrastructure.tpl", {
+    domain      = var.domain
+    home_ip     = replace(var.home_ip, "/32", "")
+    github_org  = var.github_org
     github_repo = var.github_repo
-    github_pat = var.github_pat
-    username   = var.username
+    github_pat  = var.github_pat
+    username    = var.username
   })
-  filename        = "${path.module}/../ansible/group_vars/all.yml"
+  filename        = "${path.module}/../ansible/group_vars/all/infrastructure.yml"
   file_permission = "0644"
 }
