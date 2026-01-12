@@ -53,6 +53,7 @@ All secrets are automatically generated server-side using `openssl` - they never
 3. **Ansible** - Configuration management tool that installs and configures software on servers
    - **macOS:** `brew install ansible` (or `pip install ansible`)
    - **Linux:** `sudo apt install ansible` (Ubuntu/Debian) or `pip install ansible`
+   - **Note:** Mac or Linux recommended. Ansible does not officially support Windows as a control node. See [Windows documentation](https://docs.ansible.com/projects/ansible/latest/os_guide/intro_windows.html#using-windows-as-the-control-node) for alternatives (WSL2 or remote Linux machine)
 
 4. **GitHub PAT** (Personal Access Token) - needed to access the private docker-compose repo:
    - GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
