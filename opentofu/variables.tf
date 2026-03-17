@@ -10,6 +10,12 @@ variable "ssh_key_path" {
   default     = "~/.ssh/id_ed25519.pub"
 }
 
+variable "extra_ssh_keys" {
+  description = "Additional SSH public keys to authorize (besides ssh_key_path)"
+  type        = list(string)
+  default     = []
+}
+
 variable "server_name" {
   description = "Name for the server"
   type        = string

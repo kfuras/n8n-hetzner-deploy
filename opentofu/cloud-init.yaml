@@ -4,8 +4,7 @@ users:
     groups: users, admin, docker
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
-    ssh_authorized_keys:
-      - ${ssh_public_key}
+    ssh_authorized_keys: ${jsonencode(ssh_public_keys)}
 
 packages:
   - fail2ban

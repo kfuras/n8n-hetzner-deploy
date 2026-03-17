@@ -222,8 +222,12 @@ Check current pricing at [hetzner.com/cloud](https://www.hetzner.com/cloud).
 
 ```hcl
 # Hetzner
-hcloud_token = "your-hetzner-cloud-api-token" # Change me
-ssh_key_path = "~/.ssh/id_ed25519_your_ssh_key.pub" # Change me
+hcloud_token   = "your-hetzner-cloud-api-token" # Change me
+ssh_key_path   = "~/.ssh/id_ed25519_your_ssh_key.pub" # Change me
+# extra_ssh_keys = [    # Optional additional SSH keys
+#   "ssh-ed25519 AAAA... first-key",
+#   "ssh-ed25519 AAAA... second-key"
+# ]
 home_ip      = "your.ip.address/32" # Change me
 
 # Server

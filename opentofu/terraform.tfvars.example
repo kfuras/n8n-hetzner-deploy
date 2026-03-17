@@ -1,6 +1,11 @@
 # Hetzner
 hcloud_token = "your-hetzner-cloud-api-token" # Change me
-ssh_key_path = "~/.ssh/id_ed25519_n8n_dev.pub" # Change me
+ssh_key_path   = "~/.ssh/id_ed25519_n8n_dev.pub" # Change me
+# extra_ssh_keys = [    # Optional additional SSH keys
+#   "ssh-ed25519 AAAA... first-key",
+#   "ssh-ed25519 AAAA... second-key"
+# ]
+
 home_ip      = "your.ip.address/32" # Change me
 
 # Server
