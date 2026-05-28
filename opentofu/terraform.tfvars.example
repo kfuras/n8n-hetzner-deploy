@@ -16,7 +16,7 @@ image       = "ubuntu-24.04"
 username    = "yourname" # Change me
 
 # GitHub
-github_org  = "build-automate"
+github_org  = "kfuras"
 github_repo = "n8n-production-platform"
 github_pat  = "github_pat_xxxxxxxxxxxxx" # Change me
 

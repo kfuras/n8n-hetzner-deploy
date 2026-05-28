@@ -7,7 +7,7 @@ domain: REDACTED
 home_ip: "REDACTED"
 
 # GitHub Repository (Private)
-github_org: build-automate
+github_org: kfuras
 github_repo: n8n-production-platform
 github_pat: "REDACTED"
 

@@ -57,7 +57,7 @@ All secrets are automatically generated server-side using `openssl` - they never
 
 4. **GitHub PAT** (Personal Access Token) - needed to access the private docker-compose repo:
    - GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
-   - Set Resource owner to **build-automate**
+   - Set Resource owner to **kfuras**
    - Repository access: **All repositories**
    - Permissions: **Contents → Read-only**
    - This allows the server to pull the docker-compose configuration files
@@ -91,7 +91,7 @@ All secrets are automatically generated server-side using `openssl` - they never
 
 ```bash
 # Clone and configure
-git clone https://github.com/build-automate/n8n-hetzner-deploy.git
+git clone https://github.com/kfuras/n8n-hetzner-deploy.git
 cd n8n-hetzner-deploy/opentofu
 cp terraform.tfvars.example terraform.tfvars
 code terraform.tfvars  # Edit with your values
@@ -238,7 +238,7 @@ image       = "ubuntu-24.04"
 username    = "your-username" # Change me
 
 # GitHub
-github_org  = "build-automate"
+github_org  = "kfuras"
 github_repo = "n8n-production-platform"
 github_pat  = "github_pat_xxxxxxxxxxxxx" # Change me
 
@@ -302,8 +302,8 @@ services:
 - Private key (without .pub) stays on your computer
 
 **❌ Wrong GitHub PAT permissions**
-- Must have access to `build-automate/n8n-production-platform` repo
-- Resource owner must be set to "build-automate"
+- Must have access to `kfuras/n8n-production-platform` repo
+- Resource owner must be set to "kfuras"
 
 ---
 
@@ -378,12 +378,6 @@ Compare to managed alternatives:
 - Make.com: $9-299/month
 
 **You own the infrastructure and data** with no workflow limits or execution quotas.
-
----
-
-## Support
-
-Questions? Join the [Build & Automate community on Skool](https://www.skool.com/build-automate)
 
 ---
 
