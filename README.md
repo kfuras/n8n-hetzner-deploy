@@ -55,14 +55,7 @@ All secrets are automatically generated server-side using `openssl` - they never
    - **Linux:** `sudo apt install ansible` (Ubuntu/Debian) or `pip install ansible`
    - **Note:** Mac or Linux recommended. Ansible does not officially support Windows as a control node. See [Windows documentation](https://docs.ansible.com/projects/ansible/latest/os_guide/intro_windows.html#using-windows-as-the-control-node) for alternatives (WSL2 or remote Linux machine)
 
-4. **GitHub PAT** (Personal Access Token) - needed to access the private docker-compose repo:
-   - GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
-   - Set Resource owner to **kfuras**
-   - Repository access: **All repositories**
-   - Permissions: **Contents → Read-only**
-   - This allows the server to pull the docker-compose configuration files
-
-5. **SSH key pair** - Secure way to access your server (no passwords needed)
+4. **SSH key pair** - Secure way to access your server (no passwords needed)
    
    **Creating an SSH key pair:**
    ```bash
@@ -75,11 +68,11 @@ All secrets are automatically generated server-side using `openssl` - they never
    
    **Important:** Use the `.pub` file path in your `ssh_key_path` variable!
 
-6. **Your home IP address** - Get it by running: `curl ifconfig.me`
+5. **Your home IP address** - Get it by running: `curl ifconfig.me`
    - Must include `/32` at the end (e.g., `123.45.67.89/32`)
    - This restricts SSH access to only your IP for security
 
-7. **Domain name** with DNS access
+6. **Domain name** with DNS access
    - Any domain registrar works (Namecheap, Cloudflare, Google Domains, etc.)
    - You'll need to add DNS A records pointing to your server
 
@@ -103,7 +96,6 @@ code terraform.tfvars  # Edit with your values
 # - domain
 # - home_ip
 # - ssh_key_path
-# - github_pat
 
 # Deploy
 tofu init
@@ -240,7 +232,6 @@ username    = "your-username" # Change me
 # GitHub
 github_org  = "kfuras"
 github_repo = "n8n-production-platform"
-github_pat  = "github_pat_xxxxxxxxxxxxx" # Change me
 
 # Domain & Core
 domain = "yourdomain.com" # Change me
@@ -256,7 +247,6 @@ enable_backups  = false
 ```yaml
 domain: "yourdomain.com"
 home_ip: "1.2.3.4"
-github_pat: "github_pat_xxxxx"
 ```
 
 **services.yml** (user-managed, never overwritten):
@@ -300,10 +290,6 @@ services:
 **❌ SSH key issues**
 - Make sure you use the `.pub` (public) key in terraform.tfvars
 - Private key (without .pub) stays on your computer
-
-**❌ Wrong GitHub PAT permissions**
-- Must have access to `kfuras/n8n-production-platform` repo
-- Resource owner must be set to "kfuras"
 
 ---
 

@@ -55,7 +55,7 @@
 
     - name: Clone repository
       ansible.builtin.git:
-        repo: "https://x-access-token:{{ github_pat }}@github.com/{{ github_org }}/{{ github_repo }}.git"
+        repo: "https://github.com/{{ github_org }}/{{ github_repo }}.git"
         dest: "{{ stack_dir }}"
         version: main
         force: false
@@ -280,8 +280,6 @@
       ansible.builtin.shell: |
         cd {{ stack_dir }}
         docker compose --env-file .env {{ compose_files | map('regex_replace', '^(.*)$', '--file \1') | join(' ') }} up --detach --remove-orphans 2>&1
-      environment:
-        GITHUB_PAT: "{{ github_pat }}"
       register: compose_result
       changed_when: true
 

@@ -6,10 +6,9 @@
 domain: ${domain}
 home_ip: "${home_ip}"
 
-# GitHub Repository (Private)
+# GitHub Repository
 github_org: ${github_org}
 github_repo: ${github_repo}
-github_pat: "${github_pat}"
 
 # Server Configuration
 username: ${username}

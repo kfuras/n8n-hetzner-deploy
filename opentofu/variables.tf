@@ -76,12 +76,6 @@ variable "github_repo" {
   default     = "n8n-production-platform"
 }
 
-variable "github_pat" {
-  description = "Fine-grained GitHub PAT (read-only to repo)"
-  type        = string
-  sensitive   = true
-}
-
 # Domain Configuration
 variable "domain" {
   description = "Base domain for all services"

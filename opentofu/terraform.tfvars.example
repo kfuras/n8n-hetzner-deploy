@@ -18,7 +18,6 @@ username    = "yourname" # Change me
 # GitHub
 github_org  = "kfuras"
 github_repo = "n8n-production-platform"
-github_pat  = "github_pat_xxxxxxxxxxxxx" # Change me
 
 # Domain & Core
 domain = "yourdomain.com" # Change me

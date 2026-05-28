@@ -8,6 +8,7 @@
 terraform.tfvars
 ansible/inventory.yml
 ansible/group_vars/all.yml
+ansible/group_vars/all/infrastructure.yml
 
 # Ansible
 *.retry

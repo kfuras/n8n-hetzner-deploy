@@ -94,7 +94,6 @@ resource "local_file" "ansible_infrastructure" {
     home_ip     = replace(var.home_ip, "/32", "")
     github_org  = var.github_org
     github_repo = var.github_repo
-    github_pat  = var.github_pat
     username    = var.username
   })
   filename        = "${path.module}/../ansible/group_vars/all/infrastructure.yml"
