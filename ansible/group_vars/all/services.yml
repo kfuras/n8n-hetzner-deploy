@@ -5,7 +5,7 @@
 ---
 services:
   baserow:
-    enabled: true
+    enabled: false
     compose_file: docker-compose.baserow.yml
     subdomain: baserow
     secrets:
@@ -13,19 +13,19 @@ services:
       - DATABASE_PASSWORD
       - SECRET_KEY
   nocodb:
-    enabled: true
+    enabled: false
     compose_file: docker-compose.nocodb.yml
     subdomain: nocodb
     secrets:
       - NOCODB_PASSWORD
   minio:
-    enabled: true
+    enabled: false
     compose_file: docker-compose.minio.yml
     subdomains: [minio, minio-data]
     secrets:
       - MINIO_ROOT_PASSWORD
   postiz:
-    enabled: true
+    enabled: false
     compose_file: docker-compose.postiz.yml
     subdomain: postiz
     secrets:
@@ -40,7 +40,7 @@ services:
       - NCA_S3_ACCESS_KEY
       - NCA_S3_SECRET_KEY
   kokoro_tts:
-    enabled: true
+    enabled: false
     compose_file: docker-compose.kokoro-tts.yml
     subdomain: kokoro-tts
     secrets: []

@@ -63,29 +63,37 @@
       become_user: "{{ username }}"
       when: not repo_exists.stat.exists
 
-    - name: Reset repository to clean state
+    - name: Fetch latest from origin
       ansible.builtin.command:
-        cmd: git reset --hard HEAD
+        cmd: git fetch origin main
         chdir: "{{ stack_dir }}"
-      register: git_reset
-      changed_when: "'HEAD is now at' in git_reset.stdout"
+      changed_when: false
 
-    - name: Show what was reset
-      ansible.builtin.debug:
-        msg: "{{ git_reset.stdout }}"
-      when: "'HEAD is now at' in git_reset.stdout"
-
-    - name: Pull latest changes
+    - name: Get local commit
       ansible.builtin.command:
-        cmd: git pull
+        cmd: git rev-parse HEAD
         chdir: "{{ stack_dir }}"
-      register: git_pull
-      changed_when: "'Already up to date' not in git_pull.stdout"
+      register: git_local
+      changed_when: false
 
-    - name: Show what was pulled
+    - name: Get remote commit
+      ansible.builtin.command:
+        cmd: git rev-parse origin/main
+        chdir: "{{ stack_dir }}"
+      register: git_remote
+      changed_when: false
+
+    - name: Reset to latest origin/main (only when behind)
+      ansible.builtin.command:
+        cmd: git reset --hard origin/main
+        chdir: "{{ stack_dir }}"
+      when: git_local.stdout != git_remote.stdout
+      changed_when: git_local.stdout != git_remote.stdout
+
+    - name: Show what was updated
       ansible.builtin.debug:
-        msg: "{{ git_pull.stdout }}"
-      when: "'Already up to date' not in git_pull.stdout"
+        msg: "Updated {{ git_local.stdout[0:7] }} -> {{ git_remote.stdout[0:7] }}"
+      when: git_local.stdout != git_remote.stdout
 
     - name: Remove include section from docker-compose.yml using sed
       ansible.builtin.shell: |
@@ -215,7 +223,6 @@
         mode: '0600'
         owner: "{{ username }}"
         group: "{{ username }}"
-      changed_when: false
 
     - name: Ensure DOMAIN is set correctly in .env
       ansible.builtin.lineinfile:
@@ -225,7 +232,6 @@
         mode: '0600'
         owner: "{{ username }}"
         group: "{{ username }}"
-      changed_when: false
 
     - name: Copy postiz.env.example to postiz.env
       ansible.builtin.copy:
@@ -236,7 +242,6 @@
         owner: "{{ username }}"
         group: "{{ username }}"
         force: false
-      changed_when: false
 
     - name: Configure service states in .env
       ansible.builtin.lineinfile:
@@ -244,7 +249,6 @@
         regexp: '^COMPOSE_PROFILES='
         line: "COMPOSE_PROFILES={{ enabled_services | join(',') }}"
         create: false
-      changed_when: false
       vars:
         enabled_services: >
           {%- set profiles = [] -%}
@@ -281,7 +285,7 @@
         cd {{ stack_dir }}
         docker compose --env-file .env {{ compose_files | map('regex_replace', '^(.*)$', '--file \1') | join(' ') }} up --detach --remove-orphans 2>&1
       register: compose_result
-      changed_when: true
+      changed_when: compose_result.stdout is search('(Created|Started|Recreated|Removed|Pulled|Built|Building)')
 
     - name: Show deployment output
       ansible.builtin.debug:
