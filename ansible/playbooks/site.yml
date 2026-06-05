@@ -131,6 +131,7 @@
 
         - name: Generate core infrastructure secrets
           when: not env_stat.stat.exists
+          no_log: true
           ansible.builtin.shell: |
             openssl rand -base64 32
           register: secret_result
@@ -145,6 +146,7 @@
 
         - name: Update .env with generated secrets and domain
           when: not env_stat.stat.exists
+          no_log: true
           ansible.builtin.lineinfile:
             path: "{{ stack_dir }}/.env"
             regexp: "^{{ item.key }}="
@@ -191,12 +193,14 @@
           loop: "{{ service_secrets }}"
           failed_when: false
           changed_when: false
+          no_log: true
           loop_control:
             label: "{{ item.secret }}"
 
         - name: Generate new secrets for services that need them
           ansible.builtin.shell: openssl rand -base64 32
           register: new_secrets
+          no_log: true
           loop: "{{ secret_check.results }}"
           when: item.stdout == '' or item.stdout | length < 10
           loop_control:
@@ -212,6 +216,7 @@
             group: "{{ username }}"
           loop: "{{ secret_check.results | zip(new_secrets.results) | list }}"
           when: item.1.stdout is defined
+          no_log: true
           loop_control:
             label: "{{ item.0.item.secret }}"
 
